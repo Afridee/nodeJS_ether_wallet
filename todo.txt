@@ -1,0 +1,7 @@
+//make an api to:
+    # get estimated gas price //done
+    # estimate gas for sending eth //done
+    # estimate gas for approving token transaction //done
+    # estimate gas for swapping token transaction// done
+    # estimate amountOut in token Swap //done
+    # fix gas and ether input in sendEthAPI //done

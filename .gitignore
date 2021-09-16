@@ -1,0 +1,5 @@
+node_modules/
+process.env
+test_2.js
+test.js
+.env
