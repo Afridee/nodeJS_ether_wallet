@@ -11,8 +11,10 @@ const {validateTransactionHash} = require('../validations/validateTransactionHas
 const {validateGetWeth} = require('../validations/validateGetWeth');
 const {validateERC20approvalForSwapping} = require('../validations/validateERC20approvalForSwapping');
 const {validateERC20Tokenswap} = require('../validations/validateERC20Tokenswap');
+const {validateInputdata} = require('../validations/validateInputdata');
 const {uniswapV2router2ABI} = require('../models/uniswapV2router2ABI');
 const {erc20ABI} = require('../models/ERC20contractABI');
+const abiDecoder = require('abi-decoder');
 
 
 router.post('/sendEth',async  (req, res) => {
@@ -272,7 +274,25 @@ router.post('/swapTokens',async  (req, res) => {
   }catch(ex){
     res.status(400).send({"error" : ex.message});
   }
-});
+}); 
 
+router.post('/decodeinputdata',async  (req, res) => { 
+
+    const { error } = validateInputdata(req.body); 
+    if (error) return res.status(400).send({"error": error.details[0].message});
+
+    try{
+      abi = req.body.abi;
+      data = req.body.inputdata;
+      abiDecoder.addABI(abi);
+  
+      const decodedData = abiDecoder.decodeMethod(data);
+  
+      res.status(200).send(decodedData);
+    }catch(error){
+      res.status(400).send({"error": error.message});
+    }
+
+});
 
 module.exports = router;
