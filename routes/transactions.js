@@ -11,6 +11,7 @@ const {validateTransactionHash} = require('../validations/validateTransactionHas
 const {validateGetWeth} = require('../validations/validateGetWeth');
 const {validateERC20approvalForSwapping} = require('../validations/validateERC20approvalForSwapping');
 const {validateERC20Tokenswap} = require('../validations/validateERC20Tokenswap');
+const {validateEthToTokenSwap} = require('../validations/validateEthToTokenSwap');
 const {validateInputdata} = require('../validations/validateInputdata');
 const {uniswapV2router2ABI} = require('../models/uniswapV2router2ABI');
 const {erc20ABI} = require('../models/ERC20contractABI');
@@ -274,6 +275,71 @@ router.post('/swapTokens',async  (req, res) => {
   }catch(ex){
     res.status(400).send({"error" : ex.message});
   }
+}); 
+
+router.post('/SwapEthForTokens',async  (req, res) => {
+  try{
+    const { error } = validateEthToTokenSwap(req.body); 
+    if (error) return res.status(400).send({"error": error.details[0].message});
+
+    let web3 = req.body.network == "mainnet" ? web3_mainnet : web3_rinkeby;
+    var BN = Web3.utils.BN;
+    const account = await web3.eth.accounts.privateKeyToAccount(req.body.privateKey);
+    const admin = account.address;
+  
+    //The Swap:
+    const ROUTER_ADDRESS = '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D';
+    const UniswapV2Router02Contract = await new web3.eth.Contract(uniswapV2router2ABI, ROUTER_ADDRESS);
+    const tokenContract = await new web3.eth.Contract(erc20ABI, req.body.tokenAddress);
+    const tokenDecimal = await tokenContract.methods.decimals().call();
+    var amountOutMin = req.body.amountOutMin;
+    
+    for (let i = 0; i < tokenDecimal; i++) { 
+      amountOutMin  = new BN(amountOutMin).muln(10).toString();
+    }
+    
+    const wethAddress = "0xc778417e063141139fce010982780140aa0cd5ab";
+    const path = [wethAddress, req.body.tokenAddress];
+    const to = admin;
+  
+    var swap = await UniswapV2Router02Contract.methods.swapExactETHForTokens(
+      amountOutMin, // The minimum amount of output tokens that must be received for the transaction not to revert.
+      path, // An array of token addresses. path.length must be >= 2. Pools for each consecutive pair of addresses must exist and have liquidity.
+      to, // Recipient of the output tokens.
+      Math.floor((Date.now() / 1000)) + 60 * 20 //Unix timestamp after which the transaction will revert.
+    );
+    
+    //The Transaction:
+  
+        var swapABI = swap.encodeABI();
+        const gasPrice = Web3.utils.toWei(req.body.gasPrice.toString(), 'gwei');
+        const nonce = await web3.eth.getTransactionCount(admin, 'latest'); 
+        const value = Web3.utils.toWei(req.body.value.toString(), 'ether');
+  
+        const swaptransaction = {
+          'from' : admin, 
+          'to': ROUTER_ADDRESS, 
+          'gas': req.body.gas,
+          'gasPrice' : gasPrice,
+          'nonce': nonce,
+          'data': swapABI,
+          'value' : value
+        }; 
+  
+       const signedswaptransactionTx = await web3.eth.accounts.signTransaction(swaptransaction, req.body.privateKey);
+  
+       web3.eth.sendSignedTransaction(signedswaptransactionTx.rawTransaction)
+       .on('transactionHash', function(hash){
+         console.log("transactionHash: ", hash);
+         res.status(200).send({"transactionHash" : hash});
+       }).on('error', function(error){
+        console.log("error: ", error.message);
+        res.status(400).send({"error" : error.message});
+       });
+  }catch(error){
+      res.status(400).send({"error": error.message});
+  }
+     
 }); 
 
 router.post('/decodeinputdata',async  (req, res) => { 

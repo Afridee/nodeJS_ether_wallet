@@ -1,6 +1,6 @@
 const Joi = require('joi');
 
-function validateERC20Tokenswap(accountCreation) {
+function validateERC20Tokenswap(reqBod) {
     const schema = Joi.object({
         network : Joi.string().valid("rinkeby", "mainnet").required(),
         fromContractAddress : Joi.string().max(42).min(42).required(),
@@ -12,7 +12,7 @@ function validateERC20Tokenswap(accountCreation) {
         minOutPercentage: Joi.number().max(100).min(0).required(),
     }); 
     
-    const validation =  schema.validate(accountCreation);
+    const validation =  schema.validate(reqBod);
 
     return validation;
   }
