@@ -169,45 +169,50 @@ router.post('/estimateGasForSwappingToken',  async (req, res) => {
   }
 });
 router.post('/estimateAmountsOut',  async (req, res) => {
-
-  
-  const { error } = validate_estimateAmountsOut(req.body)
-  if (error) return res.status(400).send({"error": error.details[0].message});
-
-  let web3 = req.body.network == "mainnet" ? web3_mainnet : web3_rinkeby;
-  const BN = Web3.utils.BN;
-  const ROUTER_ADDRESS = '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D';
-  const UniswapV2Router02Contract = await new web3.eth.Contract(uniswapV2router2ABI, ROUTER_ADDRESS);
-  const fromContractAddress =  req.body.fromContractAddress;
-  const toContractAddress =   req.body.toContractAddress;
-  const fromContract = await new web3.eth.Contract(erc20ABI, fromContractAddress);
-  const toContract = await new web3.eth.Contract(erc20ABI, toContractAddress);
-  const fromTokenDecimal = await fromContract.methods.decimals().call();
-  const toTokenDecimal = await toContract.methods.decimals().call();
-  var amountIn = 0;
-
-  if(req.body.amountIn>=1){
-    amountIn  = new BN((req.body.amountIn).toString()).toString();//  
-    for (let i = 0; i < fromTokenDecimal; i++) { 
-      amountIn  = new BN(amountIn).muln(10).toString();
+    try{
+      const { error } = validate_estimateAmountsOut(req.body)
+      if (error) return res.status(400).send({"error": error.details[0].message});
+    
+      let web3 = req.body.network == "mainnet" ? web3_mainnet : web3_rinkeby;
+      const BN = Web3.utils.BN;
+      const ROUTER_ADDRESS = '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D';
+      const UniswapV2Router02Contract = await new web3.eth.Contract(uniswapV2router2ABI, ROUTER_ADDRESS);
+      const fromContractAddress =  req.body.fromContractAddress;
+      const toContractAddress =   req.body.toContractAddress;
+      const fromContract = await new web3.eth.Contract(erc20ABI, fromContractAddress);
+      const toContract = await new web3.eth.Contract(erc20ABI, toContractAddress);
+      const fromTokenDecimal = await fromContract.methods.decimals().call();
+      const toTokenDecimal = await toContract.methods.decimals().call();
+      const tokenName = await toContract.methods.name().call();
+      const tokenSymbol = await toContract.methods.symbol().call();
+      var amountIn = 0;
+    
+      if(req.body.amountIn>=1){
+        amountIn  = new BN((req.body.amountIn).toString()).toString();//  
+        for (let i = 0; i < fromTokenDecimal; i++) { 
+          amountIn  = new BN(amountIn).muln(10).toString();
+        }
+      }else{
+        amountIn = (req.body.amountIn*(10**fromTokenDecimal)).toString();
+      }
+    
+    
+      const amountsOut = await UniswapV2Router02Contract.methods.getAmountsOut(amountIn, [fromContractAddress , toContractAddress]).call();
+      var amountOutMin = new BN(amountsOut[1]).muln(req.body.minOutPercentage).divn(100).toString();
+    
+      
+      for (let i = 0; i < toTokenDecimal; i++) { 
+        amountOutMin  = new BN(amountOutMin).divn(10).toString();
+      }
+    
+      res.status(200).send({
+        "estimatedamountsOut" : amountOutMin,
+        "tokenName" : tokenName,
+        "tokenSymbol" : tokenSymbol
+      });
+    }catch(error){
+      res.status(400).send(error.message);
     }
-  }else{
-    amountIn = (req.body.amountIn*(10**fromTokenDecimal)).toString();
-  }
-
-
-  const amountsOut = await UniswapV2Router02Contract.methods.getAmountsOut(amountIn, [fromContractAddress , toContractAddress]).call();
-  var amountOutMin = new BN(amountsOut[1]).muln(req.body.minOutPercentage).divn(100).toString();
-
-  
-  for (let i = 0; i < toTokenDecimal; i++) { 
-    amountOutMin  = new BN(amountOutMin).divn(10).toString();
-  }
-
-  res.status(200).send({
-    "amountIn" : amountIn,
-    "estimatedamountsOut" : amountOutMin
-  });
 });
 
 module.exports = router;
