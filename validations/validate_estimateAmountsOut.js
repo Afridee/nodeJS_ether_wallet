@@ -6,8 +6,7 @@ function validate_estimateAmountsOut(transaction) {
         network: Joi.string().valid("rinkeby", "mainnet").required(),  
         fromContractAddress : Joi.string().max(42).min(42).required(),
         toContractAddress : Joi.string().max(42).min(42).required(),
-        amountIn : Joi.number().required(),
-        minOutPercentage : Joi.number().min(1).max(100).required()
+        amountIn : Joi.number().required()
     }); 
     
     const validation =  schema.validate(transaction);

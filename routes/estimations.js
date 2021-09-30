@@ -198,7 +198,7 @@ router.post('/estimateAmountsOut',  async (req, res) => {
     
     
       const amountsOut = await UniswapV2Router02Contract.methods.getAmountsOut(amountIn, [fromContractAddress , toContractAddress]).call();
-      var amountOutMin = new BN(amountsOut[1]).muln(req.body.minOutPercentage).divn(100).toString();
+      var amountOutMin = new BN(amountsOut[1]).toString();
     
       
       for (let i = 0; i < toTokenDecimal; i++) { 
