@@ -27,9 +27,9 @@ router.post('/sendEth',async  (req, res) => {
    
    const fromAddress = req.body.fromAddress; //example: '0x303605ddAAF2690b989c2c734eA1B03F7Cc6637a'
    const toAddress = req.body.toAddress; //example: '0x1a2FB262558229F6ba98E7A819253533D2fE4fc5'
-   const value =  Web3.utils.toWei(req.body.value, 'ether'); //example: 1000000000000000000, // 1 ETH
-   const gas = req.body.gas; //example: 30000, // 1 ETH
-   const gasPrice = Web3.utils.toWei(req.body.gasPrice, 'gwei'); //still is wei...gotta change that
+   const value =  Web3.utils.toWei(req.body.value.toString(), 'ether'); //example: 1 ETH
+   const gas = req.body.gas.toString(); //example: 30000, // 1 ETH
+   const gasPrice = Web3.utils.toWei(req.body.gasPrice.toString(), 'gwei'); //still is wei...gotta change that
    const fromAddressPrivateKey = req.body.fromAddressPrivateKey; //'PRIVATE_KEY'
    const nonce = await web3.eth.getTransactionCount(fromAddress, 'latest'); // nonce starts counting from 0
 
@@ -127,6 +127,7 @@ router.post('/getWeth', async (req, res) => {
     const nonce = await web3.eth.getTransactionCount(admin, 'latest'); 
     const gasPrice = Web3.utils.toWei(req.body.gasPrice.toString(), 'gwei');
     
+
    const transaction = {
     'from' : admin,
     'to': WETH_ADDRESS, 
