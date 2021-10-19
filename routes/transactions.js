@@ -57,7 +57,7 @@ router.post('/sendEth',async  (req, res) => {
        let tries = 0;
        
        const interval = setInterval(function() {
-          if(tries<30){
+          if(tries<5){
             console.log("Attempting to get transaction receipt...");
             web3.eth.getTransactionReceipt(hash, function(err, rec) {
               if (rec) {
