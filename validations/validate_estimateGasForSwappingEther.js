@@ -5,7 +5,7 @@ function validate_estimateGasForSwappingEther(reqBod) {
         network : Joi.string().valid("rinkeby", "mainnet").required(),
         amountOutMin : Joi.number().required(),
         tokenAddress : Joi.string().max(42).min(42).required(),
-        privateKey : Joi.string().max(64).min(64).required(),
+        admin : Joi.string().max(42).min(42).required(),
         value : Joi.number().required()
     }); 
     

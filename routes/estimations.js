@@ -221,8 +221,7 @@ router.post('/estimateGasForSwappingEther',  async (req, res) => {
 
     let web3 = req.body.network == "mainnet" ? web3_mainnet : web3_rinkeby;
     var BN = Web3.utils.BN;
-    const account = await web3.eth.accounts.privateKeyToAccount(req.body.privateKey);
-    const admin = account.address;
+    const admin = req.body.admin;
   
     //The Swap:
     const ROUTER_ADDRESS = '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D';
