@@ -11,6 +11,7 @@ const {validate_estimateGasForSendingEth} = require('../validations/validate_est
 const {validate_estimateGasForApprovingToken} = require('../validations/validate_estimateGasForApprovingToken'); 
 const {validate_estimateGasForSwappingToken} = require('../validations/validate_estimateGasForSwappingToken'); 
 const {validate_estimateAmountsOut} = require('../validations/validate_estimateAmountsOut'); 
+const {validate_estimateGasForSwappingEther} = require('../validations/validate_estimateGasForSwappingEther'); 
 const {wethABI} = require('../models/wethABI');
 const {erc20ABI} = require('../models/ERC20contractABI');
 const {uniswapV2router2ABI} = require('../models/uniswapV2router2ABI');
@@ -25,7 +26,6 @@ router.post('/estimateGasPrice',  async (req, res) => {
         res.status(200).send({"GasPrice" : price/1000000000});
        });
 });
-
 router.post('/estimateGasForgetWethRequest',  async (req, res) => {
 
     const { error } = validateGasForWeth(req.body)
@@ -213,6 +213,60 @@ router.post('/estimateAmountsOut',  async (req, res) => {
     }catch(error){
       res.status(400).send(error.message);
     }
+});
+router.post('/estimateGasForSwappingEther',  async (req, res) => {
+  try{
+    const { error } = validate_estimateGasForSwappingEther(req.body); 
+    if (error) return res.status(400).send({"error": error.details[0].message});
+
+    let web3 = req.body.network == "mainnet" ? web3_mainnet : web3_rinkeby;
+    var BN = Web3.utils.BN;
+    const account = await web3.eth.accounts.privateKeyToAccount(req.body.privateKey);
+    const admin = account.address;
+  
+    //The Swap:
+    const ROUTER_ADDRESS = '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D';
+    const UniswapV2Router02Contract = await new web3.eth.Contract(uniswapV2router2ABI, ROUTER_ADDRESS);
+    const tokenContract = await new web3.eth.Contract(erc20ABI, req.body.tokenAddress);
+    const tokenDecimal = await tokenContract.methods.decimals().call();
+    var amountOutMin = req.body.amountOutMin;
+    
+    for (let i = 0; i < tokenDecimal; i++) { 
+      amountOutMin  = new BN(amountOutMin).muln(10).toString();
+    }
+    
+    const wethAddress = "0xc778417e063141139fce010982780140aa0cd5ab";
+    const path = [wethAddress, req.body.tokenAddress];
+    const to = admin;
+  
+    var swap = await UniswapV2Router02Contract.methods.swapExactETHForTokens(
+      amountOutMin, // The minimum amount of output tokens that must be received for the transaction not to revert.
+      path, // An array of token addresses. path.length must be >= 2. Pools for each consecutive pair of addresses must exist and have liquidity.
+      to, // Recipient of the output tokens.
+      Math.floor((Date.now() / 1000)) + 60 * 20 //Unix timestamp after which the transaction will revert.
+    );
+    
+    //The Transaction:
+  
+        var swapABI = swap.encodeABI();
+        const nonce = await web3.eth.getTransactionCount(admin, 'latest'); 
+        const value = Web3.utils.toWei(req.body.value.toString(), 'ether');
+  
+        const swaptransaction = {
+          'from' : admin, 
+          'to': ROUTER_ADDRESS, 
+          'nonce': nonce,
+          'data': swapABI,
+          'value' : value
+        }; 
+  
+        const estGas = await web3.eth.estimateGas(swaptransaction);
+  
+        res.status(200).send({"estimatedGasNeeded" :  estGas});
+  }catch(error){
+      res.status(400).send({"error": error.message});
+  }
+   
 });
 
 module.exports = router;
