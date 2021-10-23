@@ -7,20 +7,20 @@ router.post('/sendNotificationsForAddressActivity/:playerID',async  (req, res) =
       try{
         playerID = req.params.playerID;
     
-        // var message = { 
-        //   content_available: true,
-        //   app_id: process.env.ONESIGNAL_APP_ID,
-        //   headings: {"en": "Transaction mined"}, 
-        //   contents: {"en": `from : ${req.body.fullTransaction.from}, \n to: ${req.body.fullTransaction.to}, \n amount: ${req.body.fullTransaction.value} Wei`},
-        //   include_player_ids: [playerID.toString()],
-        // };
-      var message = { 
+        var message = { 
           content_available: true,
           app_id: process.env.ONESIGNAL_APP_ID,
-          headings: {"en": "Address Activity"}, 
-          contents: {"en": "one of your transactions has been made. please check..."},
+          headings: {"en": "Transaction mined: "}, 
+          contents: {"en": `${req.body.fullTransaction.hash}`},
           include_player_ids: [playerID.toString()],
         };
+      // var message = { 
+      //     content_available: true,
+      //     app_id: process.env.ONESIGNAL_APP_ID,
+      //     headings: {"en": "Address Activity"}, 
+      //     contents: {"en": "one of your transactions has been made. please check..."},
+      //     include_player_ids: [playerID.toString()],
+      //   };
         
         sendNotification(message);
       

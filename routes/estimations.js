@@ -230,6 +230,7 @@ router.post('/estimateGasForSwappingEther',  async (req, res) => {
     const tokenDecimal = await tokenContract.methods.decimals().call();
     var amountOutMin = req.body.amountOutMin;
     
+    
     for (let i = 0; i < tokenDecimal; i++) { 
       amountOutMin  = new BN(amountOutMin).muln(10).toString();
     }
