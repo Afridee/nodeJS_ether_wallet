@@ -12,6 +12,7 @@ const {validate_estimateGasForApprovingToken} = require('../validations/validate
 const {validate_estimateGasForSwappingToken} = require('../validations/validate_estimateGasForSwappingToken'); 
 const {validate_estimateAmountsOut} = require('../validations/validate_estimateAmountsOut'); 
 const {validate_estimateGasForSwappingEther} = require('../validations/validate_estimateGasForSwappingEther'); 
+const {validate_estimateGasForswappinTokensForEth} = require('../validations/validate_estimateGasForswappinTokensForEth'); 
 const {wethABI} = require('../models/wethABI');
 const {erc20ABI} = require('../models/ERC20contractABI');
 const {uniswapV2router2ABI} = require('../models/uniswapV2router2ABI');
@@ -268,5 +269,61 @@ router.post('/estimateGasForSwappingEther',  async (req, res) => {
   }
    
 });
+router.post('/estimateGasForswappinTokensForEth',async  (req, res) => {
+  
+  const { error } = validate_estimateGasForswappinTokensForEth(req.body); 
+  if (error) return res.status(400).send({"error": error.details[0].message});
 
+  try{
+    let web3 = req.body.network == "mainnet" ? web3_mainnet : web3_rinkeby;
+    const ROUTER_ADDRESS = '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D';
+    const fromContractAddress =  req.body.fromContractAddress;
+    const toContractAddress =   "0xc778417e063141139fce010982780140aa0cd5ab";
+    const UniswapV2Router02Contract = await new web3.eth.Contract(uniswapV2router2ABI, ROUTER_ADDRESS);
+    const fromContract = await new web3.eth.Contract(erc20ABI, fromContractAddress);
+    const admin = req.body.address;
+    const nonce = await web3.eth.getTransactionCount(admin, 'latest'); 
+    const fromTokenDecimal = await fromContract.methods.decimals().call();
+    var BN = Web3.utils.BN;
+    
+    var amountIn = 0;
+
+    if(req.body.amountIn>=1){
+      amountIn  = new BN((req.body.amountIn).toString()).toString();//  
+      for (let i = 0; i < fromTokenDecimal; i++) { 
+        amountIn  = new BN(amountIn).muln(10).toString();
+      }
+    }else{
+      amountIn = (req.body.amountIn*(10**fromTokenDecimal)).toString();
+    }
+
+    const amountsOut = await UniswapV2Router02Contract.methods.getAmountsOut(amountIn, [fromContractAddress , toContractAddress]).call();
+    const amountOutMin = new BN(amountsOut[1]).muln(req.body.minOutPercentage).divn(100).toString();
+    
+    var swap = await UniswapV2Router02Contract.methods.swapExactTokensForETH(
+      amountIn, 
+      amountOutMin,
+      [fromContractAddress, toContractAddress],
+      admin,
+      Math.floor((Date.now() / 1000)) + 60 * 20
+    );
+     
+    var swapABI = swap.encodeABI()
+
+    const swaptransaction = {
+      'from' : admin, 
+      'to': ROUTER_ADDRESS, 
+      'nonce': nonce,
+      'data': swapABI
+     }; 
+
+
+     const estGas = await web3.eth.estimateGas(swaptransaction);
+  
+     res.status(200).send({"estimatedGasNeeded" :  estGas});
+
+  }catch(ex){
+    res.status(400).send({"error" : ex.message});
+  }
+}); 
 module.exports = router;
