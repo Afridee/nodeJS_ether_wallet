@@ -12,7 +12,8 @@ const {validate_estimateGasForApprovingToken} = require('../validations/validate
 const {validate_estimateGasForSwappingToken} = require('../validations/validate_estimateGasForSwappingToken'); 
 const {validate_estimateAmountsOut} = require('../validations/validate_estimateAmountsOut'); 
 const {validate_estimateGasForSwappingEther} = require('../validations/validate_estimateGasForSwappingEther'); 
-const {validate_estimateGasForswappinTokensForEth} = require('../validations/validate_estimateGasForswappinTokensForEth'); 
+const {validate_estimateGasForswappinTokensForEth} = require('../validations/validate_estimateGasForswappinTokensForEth');
+const {validate_estimateGasForSendingERC20} = require('../validations/validate_estimateGasForSendingERC20');  
 const {wethABI} = require('../models/wethABI');
 const {erc20ABI} = require('../models/ERC20contractABI');
 const {uniswapV2router2ABI} = require('../models/uniswapV2router2ABI');
@@ -324,6 +325,50 @@ router.post('/estimateGasForswappinTokensForEth',async  (req, res) => {
 
   }catch(ex){
     res.status(400).send({"error" : ex.message});
+  }
+}); 
+router.post('/estimateGasForSendingERC20',async  (req, res) => {
+
+  const { error } = validate_estimateGasForSendingERC20(req.body); 
+  if (error) return res.status(400).send({"error": error.details[0].message});
+
+  try{
+    let web3 = req.body.network=="mainnet" ? web3_alchemy_mainnet : web3_alchemy_rinkeby;
+    const fromAddress = req.body.fromAddress; 
+    const toAddress = req.body.toAddress; 
+    const nonce = await web3.eth.getTransactionCount(fromAddress, 'latest'); 
+    const ContractAddress =   req.body.ContractAddress;
+    const Contract = await new web3.eth.Contract(erc20ABI, ContractAddress);
+    const tokenDecimal = await Contract.methods.decimals().call();
+    var BN = Web3.utils.BN;  
+    
+  
+    var amountIn = 0;
+  
+    if(req.body.amountIn>=1){
+      amountIn  = new BN((req.body.amountIn).toString()).toString();//  
+      for (let i = 0; i < tokenDecimal; i++) { 
+        amountIn  = new BN(amountIn).muln(10).toString();
+      }
+    }else{
+      amountIn = (req.body.amountIn*(10**tokenDecimal)).toString();
+    }
+  
+    const transferABI = await Contract.methods.transfer(toAddress, amountIn).encodeABI();
+  
+    const transaction = {
+      'from' : fromAddress, 
+      'to': ContractAddress, 
+      'nonce': nonce,
+      'data': transferABI
+     }; 
+  
+     const estGas = await web3.eth.estimateGas(transaction);
+
+     res.status(200).send({"estimatedGasNeeded" :  estGas});
+
+  }catch(error){
+    res.status(400).send({"error" :  error.message});
   }
 }); 
 module.exports = router;
